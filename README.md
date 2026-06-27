@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StableBlacklist
 
-## Getting Started
+스테이블코인 발행사 동결(Tether · Circle)과 소각, 그리고 제재 주소를 **온체인 이벤트 기반**으로 추적하는 공개 인텔리전스 대시보드.
 
-First, run the development server:
+현재 추적 중인 **동결 잔액 합계: ~$3.1B** (USDT-ETH · USDC-ETH · USDT-Tron).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 무엇을 하나
+
+- **발행사 동결/소각 추적** — Tether/Circle 의 블랙리스트 이벤트를 1분~15분 주기로 인덱싱
+- **정확한 상태 모델** — `frozen` / `destroyed` / `unfrozen` 상태머신. `balanceOf` 가 0이라고 "소각"으로 추론하지 않고, **`DestroyedBlackFunds` 이벤트가 실제 발생한 경우에만** 소각으로 기록하고 소각 금액·시각을 보존한다.
+- **대시보드** — 동결 잔액 합계, 상태별·체인별 분포, 필터·정렬·검색·페이지네이션 테이블
+
+## 핵심 설계 포인트
+
+- **이벤트 디코딩이 토큰마다 다르다** — USDT(Tether) 의 `AddedBlackList`/`DestroyedBlackFunds` 는 파라미터가 `indexed` 가 아니라 **`data`** 에 들어있고, USDC(Circle) 의 `Blacklisted` 는 `indexed` 라 **`topics`** 에 있다. (실데이터로 검증)
+- **이벤트 소싱 상태머신** — 로그를 (block, logIndex) 순으로 정렬해 순차 전이. 동결+소각이 같은 블록에 발생해도 순서가 보장된다.
+- **체인별 주소 정규화** — EVM 은 lowercase hex, Tron 은 Base58Check(대소문자 보존).
+- **순수 로직 분리 + 단위 테스트** — 이벤트 디코더와 상태 전이는 네트워크/DB 의존 없는 순수 함수로 테스트.
+
+## 아키텍처
+
+```
+Etherscan(EVM logs) / TronGrid(events)
+  → 디코더 (events.ts: USDT=data / USDC=topics)
+  → 상태머신 (state-machine.ts: applyEvent)
+  → Supabase (sbl_frozen_wallets)
+  → list/stats API → 대시보드
+크론(GitHub Actions ~15분 + Vercel 일일) → /api/cron/sync
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 기술 스택
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Next.js 16 (App Router) · TypeScript (strict) · viem · Supabase · Vitest · Tailwind · Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 로컬 실행
 
-## Learn More
+```bash
+npm install
+cp .env.local.example .env.local   # 키 채우기 (Supabase, Etherscan, Alchemy, TronGrid, CRON_SECRET)
+# Supabase SQL Editor 에 supabase/schema.sql 적용
+npm run dev
+# 인덱서 1회 실행:
+curl -H "authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/sync
+```
 
-To learn more about Next.js, take a look at the following resources:
+테스트 / 타입체크 / 린트:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm test && npx tsc --noEmit && npm run lint
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 배포 & 지속 업데이트
 
-## Deploy on Vercel
+1. Vercel 에 import → 환경변수 6개 입력 (`.env.local` 키와 동일)
+2. Supabase SQL Editor 에 `supabase/schema.sql` 적용
+3. 지속 갱신: GitHub Actions(`.github/workflows/sync.yml`)가 `*/15` 마다 배포된 `/api/cron/sync` 호출
+   - GitHub repo secrets: `DEPLOY_URL`, `CRON_SECRET`
+   - 백업으로 Vercel Cron 이 하루 1회 실행
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 라이선스 / 면책
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+공개된 온체인 데이터를 중립적으로 집계합니다. 투자/법률 자문이 아닙니다.
