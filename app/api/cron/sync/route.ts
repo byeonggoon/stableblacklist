@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { syncEth } from '@/lib/indexer/eth-indexer';
-// import { syncTron } from '@/lib/indexer/tron-indexer'; // Task 8에서 추가
+import { syncTron } from '@/lib/indexer/tron-indexer';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,8 +13,8 @@ export async function GET(req: Request) {
   }
   try {
     const eth = await syncEth();
-    // const tron = await syncTron();
-    return NextResponse.json({ ok: true, eth, at: new Date().toISOString() });
+    const tron = await syncTron();
+    return NextResponse.json({ ok: true, eth, tron, at: new Date().toISOString() });
   } catch (e) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }

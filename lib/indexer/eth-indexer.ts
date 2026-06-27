@@ -8,7 +8,7 @@ import {
 } from '@/lib/chains/contracts';
 
 const ETHERSCAN = 'https://api.etherscan.io/v2/api';
-const RATE_MS = 220;
+const RATE_MS = 350; // Etherscan 무료 3 calls/sec → 350ms 간격(=2.85/sec)으로 직렬화
 const FIRST_RUN_LOOKBACK = 3_000_000; // 첫 실행 시 최근 ~1년만 (속도). 이후는 커서 기반 증분.
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -52,7 +52,9 @@ export async function syncEth(): Promise<{ token: string; events: number }[]> {
 
   const results: { token: string; events: number }[] = [];
   for (const { token, contract, topics } of TOKENS) {
-    const rawLogs = (await Promise.all(topics.map((t) => fetchLogs(contract, t, fromBlock, latest)))).flat();
+    // ⚠ 토픽을 직렬로 조회: Promise.all 동시 호출은 Etherscan 3/sec 한도를 초과한다.
+    const rawLogs: RawLog[] = [];
+    for (const t of topics) rawLogs.push(...(await fetchLogs(contract, t, fromBlock, latest)));
     const events = await applyRawLogs({
       rawLogs,
       token,

@@ -21,7 +21,8 @@ export function applyEvent(
   ev: DecodedEvent,
   ctx: { token: string; chain: string },
 ): FrozenRow {
-  const addr = ev.address.toLowerCase();
+  // 주소는 호출자가 체인별로 정규화한 상태로 들어옴(ETH=lowercase, Tron=Base58). 여기서 변형 금지.
+  const addr = ev.address;
   const row: FrozenRow = current
     ? { ...current }
     : { address: addr, token: ctx.token, chain: ctx.chain, status: 'frozen', balance: 0, frozen_at: null };
