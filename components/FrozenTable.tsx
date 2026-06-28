@@ -68,6 +68,7 @@ export default function FrozenTable() {
   const [token, setToken] = useState('all');
   const [chain, setChain] = useState('all');
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // 디바운스 전 원본 입력
   const [sort, setSort] = useState('balance_desc');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<ListResp | null>(null);
@@ -81,6 +82,12 @@ export default function FrozenTable() {
     setSort((cur) => (cur === `${field}_desc` ? `${field}_asc` : `${field}_desc`));
     setPage(1);
   };
+
+  // 검색 디바운스: 타이핑 멈춘 뒤 350ms 후에만 검색어 반영 (매 키 입력마다 fetch 방지)
+  useEffect(() => {
+    const id = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 350);
+    return () => clearTimeout(id);
+  }, [searchInput]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -129,7 +136,7 @@ export default function FrozenTable() {
             options={[{ value: 'all', label: t('all') }, { value: 'USDT', label: 'USDT' }, { value: 'USDC', label: 'USDC' }]} />
           <PillGroup value={chain} onChange={onFilter(setChain)}
             options={[{ value: 'all', label: t('all') }, { value: 'Ethereum', label: 'ETH' }, { value: 'Tron', label: 'Tron' }]} />
-          <input value={search} onChange={(e) => onFilter(setSearch)(e.target.value.trim())} placeholder={t('searchPlaceholder')}
+          <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder={t('searchPlaceholder')}
             className="w-32 rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-200 placeholder:text-neutral-600 sm:w-36" />
         </div>
       </div>

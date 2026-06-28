@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/db/supabase';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
+const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anon';
+
 export async function GET(req: Request) {
+  const rl = await checkRateLimit(`list:${clientIp(req)}`, 60, 60_000);
+  if (!rl.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
   const url = new URL(req.url);
   const token = url.searchParams.get('token') ?? 'all';
   const chain = url.searchParams.get('chain') ?? 'all';

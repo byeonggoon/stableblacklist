@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '@/lib/db/supabase';
+import { getRedis } from '@/lib/upstash';
+import { checkRateLimit } from '@/lib/rate-limit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+
+const CACHE_KEY = 'sbl_stats_v1';
+const CACHE_TTL = 60; // seconds — stats 는 15분마다 갱신되므로 60s 캐시로 충분
+const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anon';
 
 async function countRows(sb: SupabaseClient, filters: Record<string, string>): Promise<number> {
   let q = sb.from('sbl_frozen_wallets').select('*', { count: 'exact', head: true });
@@ -16,7 +22,18 @@ async function frozenSum(sb: SupabaseClient, token: string, chain: string): Prom
   return Number(data ?? 0);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rl = await checkRateLimit(`stats:${clientIp(req)}`, 60, 60_000);
+  if (!rl.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+
+  const redis = getRedis();
+  if (redis) {
+    try {
+      const cached = await redis.get(CACHE_KEY);
+      if (cached) return NextResponse.json(cached);
+    } catch { /* 캐시 미스로 진행 */ }
+  }
+
   const sb = getSupabase();
 
   const [frozen, destroyed, unfrozen, totalFrozenSum] = await Promise.all([
@@ -46,12 +63,18 @@ export async function GET() {
     .limit(1)
     .maybeSingle();
 
-  return NextResponse.json({
+  const payload = {
     frozen,
     destroyed,
     unfrozen,
     totalFrozenSum,
     breakdown,
     lastUpdated: last?.updated_at ?? null,
-  });
+  };
+
+  if (redis) {
+    try { await redis.set(CACHE_KEY, payload, { ex: CACHE_TTL }); } catch { /* 캐시 쓰기 실패 무시 */ }
+  }
+
+  return NextResponse.json(payload);
 }
