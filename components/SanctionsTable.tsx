@@ -3,9 +3,16 @@
 import { useEffect, useState } from 'react';
 import { shortAddr, explorerUrl } from '@/lib/format';
 import { useT } from '@/lib/i18n';
+import { programDesc } from '@/lib/sanctions/programs';
 import { CopyButton, PillGroup } from './table-ui';
 
-interface SanctionRow { address: string; chain: string; source: string }
+interface SanctionRow {
+  address: string;
+  chain: string;
+  source: string;
+  entity?: string | null;
+  programs?: string | null;
+}
 interface ListResp { items: SanctionRow[]; total: number; page: number; totalPages: number }
 
 export default function SanctionsTable() {
@@ -20,7 +27,6 @@ export default function SanctionsTable() {
 
   const onChain = (v: string) => { setChain(v); setPage(1); };
 
-  // 검색 디바운스
   useEffect(() => {
     const id = setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 350);
     return () => clearTimeout(id);
@@ -65,27 +71,28 @@ export default function SanctionsTable() {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-neutral-500">
             <tr className="border-b border-white/10">
               <th className="px-4 py-2.5 font-medium">{t('colAddress')}</th>
               <th className="px-4 py-2.5 font-medium">{t('colChain')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('colEntity')}</th>
               <th className="px-4 py-2.5 font-medium">{t('colSource')}</th>
             </tr>
           </thead>
           <tbody className="font-mono text-[13px]">
             {error ? (
-              <tr><td colSpan={3} className="px-4 py-10 text-center font-sans text-sm text-red-400">{t('error')}</td></tr>
+              <tr><td colSpan={4} className="px-4 py-10 text-center font-sans text-sm text-red-400">{t('error')}</td></tr>
             ) : loading && !data ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-white/5">
-                  {Array.from({ length: 3 }).map((__, j) => (
+                  {Array.from({ length: 4 }).map((__, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-3 animate-pulse rounded bg-white/10" /></td>
                   ))}
                 </tr>
               ))
             ) : items.length === 0 ? (
-              <tr><td colSpan={3} className="px-4 py-10 text-center font-sans text-sm text-neutral-500">{t('empty')}</td></tr>
+              <tr><td colSpan={4} className="px-4 py-10 text-center font-sans text-sm text-neutral-500">{t('empty')}</td></tr>
             ) : (
               items.map((r) => (
                 <tr key={`${r.address}-${r.chain}`} className="border-b border-white/5 hover:bg-white/[0.03]">
@@ -97,6 +104,25 @@ export default function SanctionsTable() {
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-neutral-400">{r.chain}</td>
+                  <td className="px-4 py-2.5">
+                    {r.entity ? (
+                      <div className="max-w-[340px]">
+                        <div className="truncate font-sans text-neutral-300" title={r.entity}>{r.entity}</div>
+                        {r.programs && (
+                          <div className="mt-0.5 flex flex-wrap gap-1">
+                            {r.programs.split(',').map((c) => c.trim()).filter(Boolean).map((code) => (
+                              <span key={code} title={programDesc(code, lang)}
+                                className="cursor-help rounded bg-red-400/10 px-1 text-[10px] text-red-300/90 underline decoration-dotted decoration-red-300/40 underline-offset-2">
+                                {code}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-neutral-600">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5">
                     <span className="rounded border border-red-400/40 bg-red-400/10 px-1.5 py-0.5 text-[10px] text-red-300">{r.source}</span>
                   </td>

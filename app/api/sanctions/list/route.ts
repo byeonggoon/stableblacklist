@@ -20,7 +20,8 @@ export async function GET(req: Request) {
   let q = sb.from('sbl_sanctioned_addresses').select('*', { count: 'exact' });
   if (chain !== 'all') q = q.eq('chain', chain);
   if (search) q = q.ilike('address', `${search}%`);
-  q = q.order('chain', { ascending: true }).order('address', { ascending: true })
+  q = q.order('entity', { ascending: true, nullsFirst: false })
+    .order('chain', { ascending: true }).order('address', { ascending: true })
     .range((page - 1) * limit, page * limit - 1);
 
   const { data, count, error } = await q;
