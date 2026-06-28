@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
-const CACHE_KEY = 'sbl_stats_v1';
+const CACHE_KEY = 'sbl_stats_v2';
 const CACHE_TTL = 60; // seconds — stats 는 15분마다 갱신되므로 60s 캐시로 충분
 const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anon';
 
@@ -20,6 +20,13 @@ async function countRows(sb: SupabaseClient, filters: Record<string, string>): P
 async function frozenSum(sb: SupabaseClient, token: string, chain: string): Promise<number> {
   const { data } = await sb.rpc('sbl_frozen_balance_sum', { p_token: token, p_chain: chain });
   return Number(data ?? 0);
+}
+
+async function countSanctioned(sb: SupabaseClient, chain?: string): Promise<number> {
+  let q = sb.from('sbl_sanctioned_addresses').select('*', { count: 'exact', head: true });
+  if (chain) q = q.eq('chain', chain);
+  const { count } = await q; // 테이블 미존재 시 count=null → 0 (graceful)
+  return count ?? 0;
 }
 
 export async function GET(req: Request) {
@@ -63,12 +70,21 @@ export async function GET(req: Request) {
     .limit(1)
     .maybeSingle();
 
+  // OFAC 제재 주소 (체인-네이티브 리스트 기준)
+  const sanctionedChains = ['Ethereum', 'Bitcoin', 'Tron'];
+  const sanctionedBreakdown = await Promise.all(
+    sanctionedChains.map(async (c) => ({ chain: c, count: await countSanctioned(sb, c) })),
+  );
+  const sanctioned = sanctionedBreakdown.reduce((s, x) => s + x.count, 0);
+
   const payload = {
     frozen,
     destroyed,
     unfrozen,
     totalFrozenSum,
     breakdown,
+    sanctioned,
+    sanctionedBreakdown,
     lastUpdated: last?.updated_at ?? null,
   };
 

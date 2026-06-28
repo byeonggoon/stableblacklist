@@ -30,3 +30,13 @@ returns numeric language sql stable as $$
     and (p_token = 'all' or token = p_token)
     and (p_chain = 'all' or chain = p_chain);
 $$;
+
+-- OFAC 제재 암호화폐 주소 (발행사 동결과 별개 소스)
+create table if not exists sbl_sanctioned_addresses (
+  address    text not null,
+  chain      text not null,            -- 'Ethereum' | 'Bitcoin' | 'Tron'
+  source     text not null default 'OFAC',
+  updated_at timestamptz not null default now(),
+  primary key (address, chain)
+);
+create index if not exists idx_sbl_sanctioned_chain on sbl_sanctioned_addresses (chain);

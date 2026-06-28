@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import FrozenTable from '@/components/FrozenTable';
+import SanctionsTable from '@/components/SanctionsTable';
 import { fmtUsd0, fmtCount, fmtDateTime } from '@/lib/format';
 import { useT, type Lang } from '@/lib/i18n';
 
 interface Breakdown { token: string; chain: string; frozenCount: number; frozenSum: number }
 interface Stats {
   frozen: number; destroyed: number; unfrozen: number;
-  totalFrozenSum: number; breakdown: Breakdown[]; lastUpdated: string | null;
+  totalFrozenSum: number; breakdown: Breakdown[];
+  sanctioned: number; lastUpdated: string | null;
 }
 
 function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
@@ -40,6 +42,7 @@ function LangToggle() {
 export default function Home() {
   const { t, lang } = useT();
   const [stats, setStats] = useState<Stats | null>(null);
+  const [view, setView] = useState<'frozen' | 'sanctions'>('frozen');
 
   useEffect(() => {
     fetch('/api/frozen/stats').then((r) => r.json()).then(setStats).catch(() => {});
@@ -66,12 +69,13 @@ export default function Home() {
         </header>
 
         {/* hero stats */}
-        <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <StatCard label={t('statTotalLabel')} value={fmtUsd0(stats?.totalFrozenSum ?? 0)}
             sub={t('statTotalSub')} accent="text-amber-300" />
           <StatCard label={t('statFrozen')} value={fmtCount(stats?.frozen ?? 0)} sub="status = frozen" />
           <StatCard label={t('statDestroyed')} value={fmtCount(stats?.destroyed ?? 0)} sub="DestroyedBlackFunds" accent="text-red-300" />
           <StatCard label={t('statUnfrozen')} value={fmtCount(stats?.unfrozen ?? 0)} sub="status = unfrozen" />
+          <StatCard label={t('statSanctioned')} value={fmtCount(stats?.sanctioned ?? 0)} sub="OFAC SDN" accent="text-red-300" />
         </section>
 
         {/* breakdown */}
@@ -91,8 +95,20 @@ export default function Home() {
           </section>
         )}
 
+        {/* view toggle: 발행사 동결 / OFAC 제재 */}
+        <div className="mb-3 flex gap-2">
+          {([['frozen', t('viewFrozen')], ['sanctions', t('viewSanctions')]] as const).map(([v, label]) => (
+            <button key={v} onClick={() => setView(v)}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
+                view === v ? 'border-amber-400/40 bg-amber-400/10 text-amber-300' : 'border-white/10 text-neutral-400 hover:text-neutral-200'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* table */}
-        <FrozenTable />
+        {view === 'frozen' ? <FrozenTable /> : <SanctionsTable />}
 
         <footer className="mt-8 text-center text-xs text-neutral-700">{t('footer')}</footer>
       </div>

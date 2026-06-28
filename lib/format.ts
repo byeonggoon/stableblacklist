@@ -17,5 +17,6 @@ export const fmtDateTime = (s: string | null | undefined) =>
 
 export function explorerUrl(chain: string, address: string): string {
   if (chain === 'Tron') return `https://tronscan.org/#/address/${address}`;
+  if (chain === 'Bitcoin') return `https://mempool.space/address/${address}`;
   return `https://etherscan.io/address/${address}`;
 }
