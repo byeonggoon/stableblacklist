@@ -4,17 +4,28 @@ import { useState } from 'react';
 import { programDesc } from '@/lib/sanctions/programs';
 import type { Lang } from '@/lib/i18n';
 
-/** OFAC 프로그램 코드 칩 + 마우스오버 설명 툴팁 (SanctionsTable·Cross-flagged 공용). */
+/** OFAC 프로그램 코드 칩 + 즉시 뜨는 커스텀 설명 툴팁 (SanctionsTable·Cross-flagged 공용).
+ *  position:fixed 로 테이블 overflow 에 잘리지 않게 함. */
 export function ProgramChips({ programs, lang }: { programs?: string | null; lang: Lang }) {
+  const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
   if (!programs) return null;
+  const codes = programs.split(',').map((c) => c.trim()).filter(Boolean);
   return (
     <div className="mt-0.5 flex flex-wrap gap-1">
-      {programs.split(',').map((c) => c.trim()).filter(Boolean).map((code) => (
-        <span key={code} title={programDesc(code, lang)}
+      {codes.map((code) => (
+        <span key={code}
+          onMouseEnter={(e) => setTip({ text: programDesc(code, lang), x: e.clientX, y: e.clientY })}
+          onMouseLeave={() => setTip(null)}
           className="cursor-help rounded bg-red-400/10 px-1 text-[10px] text-red-300/90 underline decoration-dotted decoration-red-300/40 underline-offset-2">
           {code}
         </span>
       ))}
+      {tip && (
+        <div className="pointer-events-none fixed z-50 max-w-[260px] -translate-y-full rounded-md border border-white/15 bg-neutral-900/95 px-2 py-1 text-[11px] leading-snug text-neutral-200 shadow-lg"
+          style={{ left: tip.x + 8, top: tip.y - 8 }}>
+          {tip.text}
+        </div>
+      )}
     </div>
   );
 }
