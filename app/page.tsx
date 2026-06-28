@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import FrozenTable from '@/components/FrozenTable';
 import SanctionsTable from '@/components/SanctionsTable';
+import Charts from '@/components/Charts';
 import { fmtUsd0, fmtCount, fmtDateTime } from '@/lib/format';
 import { useT, type Lang } from '@/lib/i18n';
 
@@ -13,11 +14,11 @@ interface Stats {
   sanctioned: number; lastUpdated: string | null;
 }
 
-function StatCard({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent?: string }) {
+function StatCard({ label, value, sub, accent, className }: { label: string; value: string; sub?: string; accent?: string; className?: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
+    <div className={`rounded-xl border border-white/10 bg-white/[0.02] p-5 ${className ?? ''}`}>
       <div className="text-[11px] uppercase tracking-wider text-neutral-500">{label}</div>
-      <div className={`mt-1 font-mono text-2xl font-semibold ${accent ?? 'text-neutral-100'}`}>{value}</div>
+      <div className={`mt-1 font-mono text-xl font-semibold tabular-nums sm:text-2xl ${accent ?? 'text-neutral-100'}`}>{value}</div>
       {sub && <div className="mt-1 text-xs text-neutral-500">{sub}</div>}
     </div>
   );
@@ -69,9 +70,9 @@ export default function Home() {
         </header>
 
         {/* hero stats */}
-        <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <StatCard label={t('statTotalLabel')} value={fmtUsd0(stats?.totalFrozenSum ?? 0)}
-            sub={t('statTotalSub')} accent="text-amber-300" />
+            sub={t('statTotalSub')} accent="text-amber-300" className="col-span-2" />
           <StatCard label={t('statFrozen')} value={fmtCount(stats?.frozen ?? 0)} sub="status = frozen" />
           <StatCard label={t('statDestroyed')} value={fmtCount(stats?.destroyed ?? 0)} sub="DestroyedBlackFunds" accent="text-red-300" />
           <StatCard label={t('statUnfrozen')} value={fmtCount(stats?.unfrozen ?? 0)} sub="status = unfrozen" />
@@ -94,6 +95,9 @@ export default function Home() {
             ))}
           </section>
         )}
+
+        {/* 트렌드/시차 차트 */}
+        <Charts />
 
         {/* view toggle: 발행사 동결 / OFAC 제재 */}
         <div className="mb-3 flex gap-2">
