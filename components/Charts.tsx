@@ -6,6 +6,9 @@ import { useT } from '@/lib/i18n';
 interface MonthRow { month: string; frozen: number; destroyed: number }
 
 function MonthlyChart({ data }: { data: MonthRow[] }) {
+  const { t } = useT();
+  const [hover, setHover] = useState<number | null>(null);
+
   const W = 880, H = 170, padL = 28, padR = 6, padT = 12, padB = 22;
   const max = Math.max(1, ...data.map((d) => Math.max(Number(d.frozen), Number(d.destroyed))));
   const n = data.length || 1;
@@ -15,26 +18,42 @@ function MonthlyChart({ data }: { data: MonthRow[] }) {
   const plotH = H - padT - padB;
   const yOf = (v: number) => padT + plotH * (1 - v / max);
   const hOf = (v: number) => plotH * (v / max);
+
+  const tipLeft = hover === null ? 0 : Math.min(94, Math.max(6, ((padL + hover * groupW + groupW / 2) / W) * 100));
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="monthly activity">
-      <text x={2} y={padT + 7} className="fill-neutral-600 text-[9px]">{max}</text>
-      <line x1={padL} y1={padT + plotH} x2={W - padR} y2={padT + plotH} className="stroke-white/10" strokeWidth={1} />
-      {data.map((d, i) => {
-        const x = padL + i * groupW;
-        const f = Number(d.frozen), de = Number(d.destroyed);
-        return (
-          <g key={d.month}>
-            <rect x={x} y={yOf(f)} width={barW} height={hOf(f)} className="fill-amber-400/70" rx={1}>
-              <title>{d.month} · frozen {f}</title>
-            </rect>
-            <rect x={x + barW + 1} y={yOf(de)} width={barW} height={hOf(de)} className="fill-red-400/70" rx={1}>
-              <title>{d.month} · destroyed {de}</title>
-            </rect>
-            {i % labelStep === 0 && <text x={x} y={H - 7} className="fill-neutral-600 text-[8px]">{d.month.slice(2)}</text>}
-          </g>
-        );
-      })}
-    </svg>
+    <div className="relative">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="monthly activity">
+        <text x={2} y={padT + 7} className="fill-neutral-600 text-[9px]">{max}</text>
+        <line x1={padL} y1={padT + plotH} x2={W - padR} y2={padT + plotH} className="stroke-white/10" strokeWidth={1} />
+        {data.map((d, i) => {
+          const x = padL + i * groupW;
+          const f = Number(d.frozen), de = Number(d.destroyed);
+          return (
+            <g key={d.month}>
+              {hover === i && <rect x={x - 1} y={padT} width={barW * 2 + 3} height={plotH} className="fill-white/5" />}
+              <rect x={x} y={yOf(f)} width={barW} height={hOf(f)} className="fill-amber-400/70" rx={1} />
+              <rect x={x + barW + 1} y={yOf(de)} width={barW} height={hOf(de)} className="fill-red-400/70" rx={1} />
+              {i % labelStep === 0 && <text x={x} y={H - 7} className="fill-neutral-600 text-[8px]">{d.month.slice(2)}</text>}
+            </g>
+          );
+        })}
+        {/* 투명 호버 영역 (열 전체) */}
+        {data.map((d, i) => (
+          <rect key={`h-${d.month}`} x={padL + i * groupW} y={padT} width={groupW} height={plotH}
+            fill="transparent" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} />
+        ))}
+      </svg>
+
+      {hover !== null && (
+        <div className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-md border border-white/15 bg-neutral-900/95 px-2 py-1 text-[11px] shadow-lg"
+          style={{ left: `${tipLeft}%` }}>
+          <div className="font-mono text-neutral-200">{data[hover].month}</div>
+          <div className="text-amber-300">{t('legendFrozen')}: {Number(data[hover].frozen).toLocaleString()}</div>
+          <div className="text-red-300">{t('legendDestroyed')}: {Number(data[hover].destroyed).toLocaleString()}</div>
+        </div>
+      )}
+    </div>
   );
 }
 
