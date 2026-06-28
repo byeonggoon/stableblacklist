@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { fmtAmt, shortAddr, fmtDate, explorerUrl } from '@/lib/format';
+import { useT, type TKey } from '@/lib/i18n';
 
 interface Row {
   address: string;
@@ -15,10 +16,10 @@ interface Row {
 }
 interface ListResp { items: Row[]; total: number; page: number; totalPages: number; frozenSum: number }
 
-const STATUSES = [
-  { key: 'frozen', label: '동결 (frozen)', color: 'text-amber-300 border-amber-400/40 bg-amber-400/10' },
-  { key: 'destroyed', label: '소각 (destroyed)', color: 'text-red-300 border-red-400/40 bg-red-400/10' },
-  { key: 'unfrozen', label: '해제 (unfrozen)', color: 'text-neutral-300 border-neutral-500/40 bg-neutral-500/10' },
+const STATUSES: { key: string; tKey: TKey; color: string }[] = [
+  { key: 'frozen', tKey: 'tabFrozen', color: 'text-amber-300 border-amber-400/40 bg-amber-400/10' },
+  { key: 'destroyed', tKey: 'tabDestroyed', color: 'text-red-300 border-red-400/40 bg-red-400/10' },
+  { key: 'unfrozen', tKey: 'tabUnfrozen', color: 'text-neutral-300 border-neutral-500/40 bg-neutral-500/10' },
 ];
 
 function CopyButton({ address }: { address: string }) {
@@ -31,8 +32,8 @@ function CopyButton({ address }: { address: string }) {
     } catch { /* clipboard 거부됨 */ }
   };
   return (
-    <button onClick={onCopy} title="주소 복사"
-      className="shrink-0 text-neutral-600 transition hover:text-neutral-200" aria-label="주소 복사">
+    <button onClick={onCopy} title="copy address"
+      className="shrink-0 text-neutral-600 transition hover:text-neutral-200" aria-label="copy address">
       {copied ? (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6 9 17l-5-5" className="text-emerald-400" /></svg>
       ) : (
@@ -62,6 +63,7 @@ function PillGroup({ value, onChange, options }: {
 }
 
 export default function FrozenTable() {
+  const { t, lang } = useT();
   const [status, setStatus] = useState('frozen');
   const [token, setToken] = useState('all');
   const [chain, setChain] = useState('all');
@@ -70,7 +72,7 @@ export default function FrozenTable() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<ListResp | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   const onFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
 
@@ -84,7 +86,7 @@ export default function FrozenTable() {
     const ctrl = new AbortController();
     const run = async () => {
       setLoading(true);
-      setError(null);
+      setError(false);
       const qs = new URLSearchParams({ status, token, chain, sort, page: String(page), limit: '25', search });
       try {
         const r = await fetch(`/api/frozen/list?${qs.toString()}`, { signal: ctrl.signal });
@@ -93,7 +95,7 @@ export default function FrozenTable() {
         setLoading(false);
       } catch (e) {
         if ((e as Error)?.name === 'AbortError') return;
-        setError('데이터를 불러오지 못했습니다. 잠시 후 다시 시도하세요.');
+        setError(true);
         setLoading(false);
       }
     };
@@ -102,10 +104,13 @@ export default function FrozenTable() {
   }, [status, token, chain, search, sort, page]);
 
   const isDestroyed = status === 'destroyed';
-  const amountLabel = isDestroyed ? '소각 금액' : '잔액';
-  const dateLabel = isDestroyed ? '소각일' : '동결일';
+  const amountLabel = isDestroyed ? t('colBurned') : t('colBalance');
+  const dateLabel = isDestroyed ? t('colBurnedAt') : t('colFrozenAt');
   const badge = STATUSES.find((s) => s.key === status)?.color ?? '';
   const items = data?.items ?? [];
+  const totalText = lang === 'ko'
+    ? `총 ${(data?.total ?? 0).toLocaleString()}건`
+    : `${(data?.total ?? 0).toLocaleString()} total`;
 
   return (
     <section className="rounded-xl border border-white/10 bg-white/[0.02]">
@@ -116,15 +121,15 @@ export default function FrozenTable() {
             className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${
               status === s.key ? s.color : 'border-white/10 text-neutral-400 hover:text-neutral-200'
             }`}>
-            {s.label}
+            {t(s.tKey)}
           </button>
         ))}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <PillGroup value={token} onChange={onFilter(setToken)}
-            options={[{ value: 'all', label: '전체' }, { value: 'USDT', label: 'USDT' }, { value: 'USDC', label: 'USDC' }]} />
+            options={[{ value: 'all', label: t('all') }, { value: 'USDT', label: 'USDT' }, { value: 'USDC', label: 'USDC' }]} />
           <PillGroup value={chain} onChange={onFilter(setChain)}
-            options={[{ value: 'all', label: '전체' }, { value: 'Ethereum', label: 'ETH' }, { value: 'Tron', label: 'Tron' }]} />
-          <input value={search} onChange={(e) => onFilter(setSearch)(e.target.value.trim())} placeholder="주소 검색"
+            options={[{ value: 'all', label: t('all') }, { value: 'Ethereum', label: 'ETH' }, { value: 'Tron', label: 'Tron' }]} />
+          <input value={search} onChange={(e) => onFilter(setSearch)(e.target.value.trim())} placeholder={t('searchPlaceholder')}
             className="w-32 rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-200 placeholder:text-neutral-600 sm:w-36" />
         </div>
       </div>
@@ -134,9 +139,9 @@ export default function FrozenTable() {
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="text-[11px] uppercase tracking-wider text-neutral-500">
             <tr className="border-b border-white/10">
-              <th className="px-4 py-2.5 font-medium">주소</th>
-              <th className="px-4 py-2.5 font-medium">토큰 / 체인</th>
-              <th className="px-4 py-2.5 font-medium">상태</th>
+              <th className="px-4 py-2.5 font-medium">{t('colAddress')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('colTokenChain')}</th>
+              <th className="px-4 py-2.5 font-medium">{t('colStatus')}</th>
               <th className="px-4 py-2.5 text-right font-medium">
                 <button onClick={() => handleSort('balance')}
                   className={`inline-flex items-center gap-1 rounded transition hover:text-neutral-200 ${sort.startsWith('balance') ? 'text-amber-300' : ''}`}>
@@ -155,7 +160,7 @@ export default function FrozenTable() {
           </thead>
           <tbody className="font-mono text-[13px]">
             {error ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center font-sans text-sm text-red-400">{error}</td></tr>
+              <tr><td colSpan={5} className="px-4 py-10 text-center font-sans text-sm text-red-400">{t('error')}</td></tr>
             ) : loading && !data ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-white/5">
@@ -165,7 +170,7 @@ export default function FrozenTable() {
                 </tr>
               ))
             ) : items.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center font-sans text-sm text-neutral-500">조건에 맞는 주소가 없습니다</td></tr>
+              <tr><td colSpan={5} className="px-4 py-10 text-center font-sans text-sm text-neutral-500">{t('empty')}</td></tr>
             ) : (
               items.map((r) => (
                 <tr key={`${r.address}-${r.token}-${r.chain}`} className="border-b border-white/5 hover:bg-white/[0.03]">
@@ -195,13 +200,13 @@ export default function FrozenTable() {
 
       {/* footer / pagination */}
       <div className="flex items-center justify-between gap-2 border-t border-white/10 p-3 text-xs text-neutral-500">
-        <span>{loading ? '불러오는 중…' : `총 ${(data?.total ?? 0).toLocaleString()}건`}</span>
+        <span>{loading ? t('loading') : totalText}</span>
         <div className="flex items-center gap-2">
           <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-            className="rounded border border-white/10 px-2 py-1 disabled:opacity-30">이전</button>
+            className="rounded border border-white/10 px-2 py-1 disabled:opacity-30">{t('prev')}</button>
           <span>{page} / {data?.totalPages ?? 1}</span>
           <button disabled={page >= (data?.totalPages ?? 1)} onClick={() => setPage((p) => p + 1)}
-            className="rounded border border-white/10 px-2 py-1 disabled:opacity-30">다음</button>
+            className="rounded border border-white/10 px-2 py-1 disabled:opacity-30">{t('next')}</button>
         </div>
       </div>
     </section>
