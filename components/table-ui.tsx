@@ -1,6 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { programDesc } from '@/lib/sanctions/programs';
+import type { Lang } from '@/lib/i18n';
+
+/** OFAC 프로그램 코드 칩 + 마우스오버 설명 툴팁 (SanctionsTable·Cross-flagged 공용). */
+export function ProgramChips({ programs, lang }: { programs?: string | null; lang: Lang }) {
+  if (!programs) return null;
+  return (
+    <div className="mt-0.5 flex flex-wrap gap-1">
+      {programs.split(',').map((c) => c.trim()).filter(Boolean).map((code) => (
+        <span key={code} title={programDesc(code, lang)}
+          className="cursor-help rounded bg-red-400/10 px-1 text-[10px] text-red-300/90 underline decoration-dotted decoration-red-300/40 underline-offset-2">
+          {code}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function CopyButton({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);

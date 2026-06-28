@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { fmtAmt, shortAddr, fmtDate, explorerUrl } from '@/lib/format';
 import { useT, type TKey } from '@/lib/i18n';
-import { CopyButton, PillGroup } from './table-ui';
+import { CopyButton, PillGroup, ProgramChips } from './table-ui';
 
 interface Row {
   address: string;
@@ -14,6 +14,8 @@ interface Row {
   frozen_at: string | null;
   destroyed_amount: number | null;
   destroyed_at: string | null;
+  entity?: string | null;
+  programs?: string | null;
 }
 interface ListResp { items: Row[]; total: number; page: number; totalPages: number; frozenSum: number }
 
@@ -111,6 +113,7 @@ export default function FrozenTable({ ofac = false }: { ofac?: boolean }) {
               <th className="px-4 py-2.5 font-medium">{t('colAddress')}</th>
               <th className="px-4 py-2.5 font-medium">{t('colTokenChain')}</th>
               <th className="px-4 py-2.5 font-medium">{t('colStatus')}</th>
+              {ofac && <th className="px-4 py-2.5 font-medium">{t('colEntity')}</th>}
               <th className="px-4 py-2.5 text-right font-medium">
                 <button onClick={() => handleSort('balance')}
                   className={`inline-flex items-center gap-1 rounded transition hover:text-neutral-200 ${sort.startsWith('balance') ? 'text-amber-300' : ''}`}>
@@ -129,17 +132,17 @@ export default function FrozenTable({ ofac = false }: { ofac?: boolean }) {
           </thead>
           <tbody className="font-mono text-[13px]">
             {error ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center font-sans text-sm text-red-400">{t('error')}</td></tr>
+              <tr><td colSpan={ofac ? 6 : 5} className="px-4 py-10 text-center font-sans text-sm text-red-400">{t('error')}</td></tr>
             ) : loading && !data ? (
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-white/5">
-                  {Array.from({ length: 5 }).map((__, j) => (
+                  {Array.from({ length: ofac ? 6 : 5 }).map((__, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-3 animate-pulse rounded bg-white/10" /></td>
                   ))}
                 </tr>
               ))
             ) : items.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center font-sans text-sm text-neutral-500">{t('empty')}</td></tr>
+              <tr><td colSpan={ofac ? 6 : 5} className="px-4 py-10 text-center font-sans text-sm text-neutral-500">{t('empty')}</td></tr>
             ) : (
               items.map((r) => (
                 <tr key={`${r.address}-${r.token}-${r.chain}`} className="border-b border-white/5 hover:bg-white/[0.03]">
@@ -155,6 +158,18 @@ export default function FrozenTable({ ofac = false }: { ofac?: boolean }) {
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] ${badge}`}>{status}</span>
                     {ofac && <span className="ml-1 rounded border border-red-400/40 bg-red-400/10 px-1.5 py-0.5 text-[10px] text-red-300">OFAC</span>}
                   </td>
+                  {ofac && (
+                    <td className="px-4 py-2.5">
+                      {r.entity ? (
+                        <div className="max-w-[280px]">
+                          <div className="truncate font-sans text-neutral-300" title={r.entity}>{r.entity}</div>
+                          <ProgramChips programs={r.programs} lang={lang} />
+                        </div>
+                      ) : (
+                        <span className="text-neutral-600">—</span>
+                      )}
+                    </td>
+                  )}
                   <td className="whitespace-nowrap px-4 py-2.5 text-right text-neutral-100">
                     {fmtAmt(isDestroyed ? r.destroyed_amount : r.balance)}
                   </td>

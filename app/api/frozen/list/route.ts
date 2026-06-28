@@ -23,12 +23,14 @@ export async function GET(req: Request) {
   const sb = getSupabase();
 
   let ofacAddrs: string[] | null = null;
+  let ofacInfo: Map<string, { entity: string | null; programs: string | null }> | null = null;
   if (ofac) {
-    // 발행사 동결과 겹칠 수 있는 체인(Ethereum/Tron)의 OFAC 주소만
-    let sq = sb.from('sbl_sanctioned_addresses').select('address').in('chain', ['Ethereum', 'Tron']);
+    // 발행사 동결과 겹칠 수 있는 체인(Ethereum/Tron)의 OFAC 주소 + 엔티티/프로그램
+    let sq = sb.from('sbl_sanctioned_addresses').select('address, entity, programs').in('chain', ['Ethereum', 'Tron']);
     if (chain !== 'all') sq = sq.eq('chain', chain);
     const { data: sanc } = await sq;
-    ofacAddrs = (sanc ?? []).map((s) => s.address);
+    ofacInfo = new Map((sanc ?? []).map((s) => [s.address, { entity: s.entity ?? null, programs: s.programs ?? null }]));
+    ofacAddrs = [...ofacInfo.keys()];
     if (ofacAddrs.length === 0) {
       return NextResponse.json({ items: [], total: 0, page, totalPages: 0, frozenSum: 0 });
     }
@@ -49,8 +51,17 @@ export async function GET(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: frozenSum } = await sb.rpc('sbl_frozen_balance_sum', { p_token: token, p_chain: chain });
+
+  const items = ofacInfo
+    ? (data ?? []).map((d) => ({
+        ...d,
+        entity: ofacInfo.get(d.address)?.entity ?? null,
+        programs: ofacInfo.get(d.address)?.programs ?? null,
+      }))
+    : data;
+
   return NextResponse.json({
-    items: data,
+    items,
     total: count ?? 0,
     page,
     totalPages: Math.ceil((count ?? 0) / limit),

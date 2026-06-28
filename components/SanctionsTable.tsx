@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { shortAddr, explorerUrl } from '@/lib/format';
 import { useT } from '@/lib/i18n';
-import { programDesc } from '@/lib/sanctions/programs';
-import { CopyButton, PillGroup } from './table-ui';
+import { CopyButton, PillGroup, ProgramChips } from './table-ui';
 
 interface SanctionRow {
   address: string;
@@ -108,16 +107,7 @@ export default function SanctionsTable() {
                     {r.entity ? (
                       <div className="max-w-[340px]">
                         <div className="truncate font-sans text-neutral-300" title={r.entity}>{r.entity}</div>
-                        {r.programs && (
-                          <div className="mt-0.5 flex flex-wrap gap-1">
-                            {r.programs.split(',').map((c) => c.trim()).filter(Boolean).map((code) => (
-                              <span key={code} title={programDesc(code, lang)}
-                                className="cursor-help rounded bg-red-400/10 px-1 text-[10px] text-red-300/90 underline decoration-dotted decoration-red-300/40 underline-offset-2">
-                                {code}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                        <ProgramChips programs={r.programs} lang={lang} />
                       </div>
                     ) : (
                       <span className="text-neutral-600">—</span>
