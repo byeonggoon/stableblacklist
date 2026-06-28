@@ -18,9 +18,24 @@ export async function GET(req: Request) {
   const limit = Math.min(200, Math.max(1, Number(url.searchParams.get('limit') ?? '50')));
   const search = url.searchParams.get('search') ?? '';
   const sort = url.searchParams.get('sort') ?? 'balance_desc';
+  const ofac = url.searchParams.get('ofac') === '1'; // 교차: OFAC 제재에도 있는 주소만
 
   const sb = getSupabase();
+
+  let ofacAddrs: string[] | null = null;
+  if (ofac) {
+    // 발행사 동결과 겹칠 수 있는 체인(Ethereum/Tron)의 OFAC 주소만
+    let sq = sb.from('sbl_sanctioned_addresses').select('address').in('chain', ['Ethereum', 'Tron']);
+    if (chain !== 'all') sq = sq.eq('chain', chain);
+    const { data: sanc } = await sq;
+    ofacAddrs = (sanc ?? []).map((s) => s.address);
+    if (ofacAddrs.length === 0) {
+      return NextResponse.json({ items: [], total: 0, page, totalPages: 0, frozenSum: 0 });
+    }
+  }
+
   let q = sb.from('sbl_frozen_wallets').select('*', { count: 'exact' });
+  if (ofacAddrs) q = q.in('address', ofacAddrs);
   if (token !== 'all') q = q.eq('token', token);
   if (chain !== 'all') q = q.eq('chain', chain);
   if (status !== 'all') q = q.eq('status', status);

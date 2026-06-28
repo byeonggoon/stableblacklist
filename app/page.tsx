@@ -42,7 +42,7 @@ function LangToggle() {
 export default function Home() {
   const { t, lang } = useT();
   const [stats, setStats] = useState<Stats | null>(null);
-  const [view, setView] = useState<'frozen' | 'sanctions'>('frozen');
+  const [view, setView] = useState<'frozen' | 'both' | 'sanctions'>('frozen');
 
   useEffect(() => {
     fetch('/api/frozen/stats').then((r) => r.json()).then(setStats).catch(() => {});
@@ -97,7 +97,7 @@ export default function Home() {
 
         {/* view toggle: 발행사 동결 / OFAC 제재 */}
         <div className="mb-3 flex gap-2">
-          {([['frozen', t('viewFrozen')], ['sanctions', t('viewSanctions')]] as const).map(([v, label]) => (
+          {([['frozen', t('viewFrozen')], ['sanctions', t('viewSanctions')], ['both', t('viewBoth')]] as const).map(([v, label]) => (
             <button key={v} onClick={() => setView(v)}
               className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
                 view === v ? 'border-amber-400/40 bg-amber-400/10 text-amber-300' : 'border-white/10 text-neutral-400 hover:text-neutral-200'
@@ -108,7 +108,7 @@ export default function Home() {
         </div>
 
         {/* table */}
-        {view === 'frozen' ? <FrozenTable /> : <SanctionsTable />}
+        {view === 'sanctions' ? <SanctionsTable /> : <FrozenTable ofac={view === 'both'} />}
 
         <footer className="mt-8 text-center text-xs text-neutral-700">{t('footer')}</footer>
       </div>

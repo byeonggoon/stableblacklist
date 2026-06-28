@@ -23,7 +23,7 @@ const STATUSES: { key: string; tKey: TKey; color: string }[] = [
   { key: 'unfrozen', tKey: 'tabUnfrozen', color: 'text-neutral-300 border-neutral-500/40 bg-neutral-500/10' },
 ];
 
-export default function FrozenTable() {
+export default function FrozenTable({ ofac = false }: { ofac?: boolean }) {
   const { t, lang } = useT();
   const [status, setStatus] = useState('frozen');
   const [token, setToken] = useState('all');
@@ -56,6 +56,7 @@ export default function FrozenTable() {
       setLoading(true);
       setError(false);
       const qs = new URLSearchParams({ status, token, chain, sort, page: String(page), limit: '25', search });
+      if (ofac) qs.set('ofac', '1');
       try {
         const r = await fetch(`/api/frozen/list?${qs.toString()}`, { signal: ctrl.signal });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -69,7 +70,7 @@ export default function FrozenTable() {
     };
     run();
     return () => ctrl.abort();
-  }, [status, token, chain, search, sort, page]);
+  }, [status, token, chain, search, sort, page, ofac]);
 
   const isDestroyed = status === 'destroyed';
   const amountLabel = isDestroyed ? t('colBurned') : t('colBalance');
@@ -150,8 +151,9 @@ export default function FrozenTable() {
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-neutral-400">{r.token} · {r.chain}</td>
-                  <td className="px-4 py-2.5">
+                  <td className="whitespace-nowrap px-4 py-2.5">
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] ${badge}`}>{status}</span>
+                    {ofac && <span className="ml-1 rounded border border-red-400/40 bg-red-400/10 px-1.5 py-0.5 text-[10px] text-red-300">OFAC</span>}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-right text-neutral-100">
                     {fmtAmt(isDestroyed ? r.destroyed_amount : r.balance)}
