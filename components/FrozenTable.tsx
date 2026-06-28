@@ -42,6 +42,25 @@ function CopyButton({ address }: { address: string }) {
   );
 }
 
+function PillGroup({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-white/10 p-0.5">
+      {options.map((o) => (
+        <button key={o.value} onClick={() => onChange(o.value)}
+          className={`rounded px-2 py-1 text-xs transition ${
+            value === o.value ? 'bg-white/10 text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'
+          }`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function FrozenTable() {
   const [status, setStatus] = useState('frozen');
   const [token, setToken] = useState('all');
@@ -101,14 +120,10 @@ export default function FrozenTable() {
           </button>
         ))}
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <select value={token} onChange={(e) => onFilter(setToken)(e.target.value)}
-            className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-300">
-            <option value="all">전체 토큰</option><option>USDT</option><option>USDC</option>
-          </select>
-          <select value={chain} onChange={(e) => onFilter(setChain)(e.target.value)}
-            className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-300">
-            <option value="all">전체 체인</option><option>Ethereum</option><option>Tron</option>
-          </select>
+          <PillGroup value={token} onChange={onFilter(setToken)}
+            options={[{ value: 'all', label: '전체' }, { value: 'USDT', label: 'USDT' }, { value: 'USDC', label: 'USDC' }]} />
+          <PillGroup value={chain} onChange={onFilter(setChain)}
+            options={[{ value: 'all', label: '전체' }, { value: 'Ethereum', label: 'ETH' }, { value: 'Tron', label: 'Tron' }]} />
           <input value={search} onChange={(e) => onFilter(setSearch)(e.target.value.trim())} placeholder="주소 검색"
             className="w-32 rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-200 placeholder:text-neutral-600 sm:w-36" />
         </div>
