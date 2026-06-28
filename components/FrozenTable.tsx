@@ -55,6 +55,12 @@ export default function FrozenTable() {
 
   const onFilter = <T,>(setter: (v: T) => void) => (v: T) => { setter(v); setPage(1); };
 
+  // 정렬 헤더 클릭: 같은 필드면 방향 토글, 다른 필드면 내림차순부터
+  const handleSort = (field: 'balance' | 'date') => {
+    setSort((cur) => (cur === `${field}_desc` ? `${field}_asc` : `${field}_desc`));
+    setPage(1);
+  };
+
   useEffect(() => {
     const ctrl = new AbortController();
     const run = async () => {
@@ -103,11 +109,6 @@ export default function FrozenTable() {
             className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-300">
             <option value="all">전체 체인</option><option>Ethereum</option><option>Tron</option>
           </select>
-          <select value={sort} onChange={(e) => onFilter(setSort)(e.target.value)}
-            className="rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-300">
-            <option value="balance_desc">금액 ↓</option><option value="balance_asc">금액 ↑</option>
-            <option value="date_desc">날짜 ↓</option><option value="date_asc">날짜 ↑</option>
-          </select>
           <input value={search} onChange={(e) => onFilter(setSearch)(e.target.value.trim())} placeholder="주소 검색"
             className="w-32 rounded-md border border-white/10 bg-transparent px-2 py-1.5 text-xs text-neutral-200 placeholder:text-neutral-600 sm:w-36" />
         </div>
@@ -121,8 +122,20 @@ export default function FrozenTable() {
               <th className="px-4 py-2.5 font-medium">주소</th>
               <th className="px-4 py-2.5 font-medium">토큰 / 체인</th>
               <th className="px-4 py-2.5 font-medium">상태</th>
-              <th className="px-4 py-2.5 text-right font-medium">{amountLabel}</th>
-              <th className="px-4 py-2.5 text-right font-medium">{dateLabel}</th>
+              <th className="px-4 py-2.5 text-right font-medium">
+                <button onClick={() => handleSort('balance')}
+                  className={`inline-flex items-center gap-1 rounded transition hover:text-neutral-200 ${sort.startsWith('balance') ? 'text-amber-300' : ''}`}>
+                  {amountLabel}
+                  <span className="text-[9px] leading-none">{sort.startsWith('balance') ? (sort.endsWith('asc') ? '▲' : '▼') : '↕'}</span>
+                </button>
+              </th>
+              <th className="px-4 py-2.5 text-right font-medium">
+                <button onClick={() => handleSort('date')}
+                  className={`inline-flex items-center gap-1 rounded transition hover:text-neutral-200 ${sort.startsWith('date') ? 'text-amber-300' : ''}`}>
+                  {dateLabel}
+                  <span className="text-[9px] leading-none">{sort.startsWith('date') ? (sort.endsWith('asc') ? '▲' : '▼') : '↕'}</span>
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody className="font-mono text-[13px]">
