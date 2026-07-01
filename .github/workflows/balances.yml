@@ -2,7 +2,7 @@ name: Tron balances refresh
 
 on:
   schedule:
-    - cron: '30 3 * * 1' # 매주 월요일 03:30 UTC (cron 에서 뺀 Tron 잔액 채우기)
+    - cron: '30 3 * * *' # 매일 03:30 UTC (신규 동결 급증분 잔액을 하루 내 채움)
   workflow_dispatch:
 
 jobs:
