@@ -6,7 +6,7 @@ import type { DecodedEvent } from './events';
 const USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const TRONGRID = 'https://api.trongrid.io';
 const RATE_MS = 220;
-const MAX_RETRY = 3;
+const MAX_RETRY = 2;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ─── hex(20-byte) → Base58Check (Tron 주소) — chase-chain 이식 ───
@@ -48,7 +48,7 @@ async function fetchEvents(eventName: string, minTs: number): Promise<TronRaw[]>
     const res = await fetch(url);
     if (!res.ok) {
       if (++retries > MAX_RETRY) break;
-      await sleep(2000 * retries);
+      await sleep(600 * retries);
       continue;
     }
     retries = 0;
