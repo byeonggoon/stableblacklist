@@ -1,0 +1,21 @@
+name: OFAC sanctions sync
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # 매주 월요일 03:00 UTC (OFAC 리스트는 변경 드묾)
+  workflow_dispatch:
+
+jobs:
+  ofac:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Fetch OFAC sanctions (0xB10C coverage + SDN.CSV enrich)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/fetch-ofac-sanctions.mjs
