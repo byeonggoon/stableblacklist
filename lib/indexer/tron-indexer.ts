@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { applyEvents } from './apply-events';
 import { getCursor, setCursor } from '@/lib/db/frozen-repo';
-import { fetchTronBalanceWithRetry } from './_balances.mjs';
 import type { DecodedEvent } from './events';
 
 const USDT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
@@ -67,19 +66,6 @@ async function fetchEvents(eventName: string, minTs: number): Promise<TronRaw[]>
   return out;
 }
 
-// frozen 주소들의 Tron USDT balanceOf (동시 5)
-async function tronRefreshBalances(addrs: string[]): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
-  const CONC = 5;
-  for (let i = 0; i < addrs.length; i += CONC) {
-    const batch = addrs.slice(i, i + CONC);
-    const bals = await Promise.all(batch.map((a) => fetchTronBalanceWithRetry(a)));
-    batch.forEach((a, j) => map.set(a, bals[j]));
-    await sleep(RATE_MS);
-  }
-  return map;
-}
-
 export async function syncTron(): Promise<{ token: string; events: number }[]> {
   const cursor = await getCursor('lastTronTimestamp');
   const minTs = cursor ? Number(cursor) : 0;
@@ -98,7 +84,9 @@ export async function syncTron(): Promise<{ token: string; events: number }[]> {
   }
   events.sort((a, b) => a.ts - b.ts);
 
-  const count = await applyEvents(events, { token: 'USDT', chain: 'Tron', refreshBalances: tronRefreshBalances });
+  // ⚠ 잔액 조회는 여기서 하지 않음(느린 retry-backoff 가 함수 타임아웃 유발).
+  //   신규 frozen 은 balance 0 으로 들어가고, 별도 주간 잡(refetch-zero-balances)이 채운다.
+  const count = await applyEvents(events, { token: 'USDT', chain: 'Tron' });
   await setCursor('lastTronTimestamp', String(Date.now()));
   return [{ token: 'USDT', events: count }];
 }
