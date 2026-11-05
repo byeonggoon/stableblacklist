@@ -5,7 +5,12 @@ import { checkRateLimit } from '@/lib/rate-limit';
 
 export const dynamic = 'force-dynamic';
 
-const CACHE_KEY = 'sbl_timeline_v2';
+const CACHE_KEY = 'sbl_timeline_v3';
+
+const nextMonth = (ym: string) => {
+  const [y, m] = ym.split('-').map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+};
 const CACHE_TTL = 300; // 5분 (추이는 천천히 변함)
 const clientIp = (req: Request) => req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anon';
 
@@ -55,11 +60,17 @@ export async function GET(req: Request) {
   ]);
 
   // 스테이블코인이라 1토큰 = $1. 건수 행에 달러 합계를 붙인다.
-  const rows = (monthly ?? []).map((m: { month: string }) => ({
-    ...m,
-    frozenUsd: Math.round(usd.get(m.month)?.frozen ?? 0),
-    destroyedUsd: Math.round(usd.get(m.month)?.destroyed ?? 0),
-  }));
+  // 활동 없는 달도 0으로 채워 x축을 실제 시간 간격으로 맞춘다 (사건 마커 위치용)
+  const byMonth = new Map((monthly ?? []).map((m: { month: string }) => [m.month, m]));
+  const rows = [];
+  const first = monthly?.[0]?.month, last = monthly?.at(-1)?.month;
+  for (let ym = first; ym && last && ym <= last; ym = nextMonth(ym)) {
+    rows.push({
+      frozen: 0, destroyed: 0, ...(byMonth.get(ym) ?? {}), month: ym,
+      frozenUsd: Math.round(usd.get(ym)?.frozen ?? 0),
+      destroyedUsd: Math.round(usd.get(ym)?.destroyed ?? 0),
+    });
+  }
 
   const payload = { monthly: rows, gap: gap ?? [] };
   if (redis) {
