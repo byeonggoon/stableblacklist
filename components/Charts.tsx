@@ -3,14 +3,27 @@
 import { useEffect, useState } from 'react';
 import { useT } from '@/lib/i18n';
 
-interface MonthRow { month: string; frozen: number; destroyed: number }
+interface MonthRow { month: string; frozen: number; destroyed: number; frozenUsd: number; destroyedUsd: number }
+type Mode = 'count' | 'usd';
 
-function MonthlyChart({ data }: { data: MonthRow[] }) {
+// $1.2B / $340M / $12K 처럼 축·툴팁용 축약
+const fmtUsdShort = (n: number) => {
+  const a = Math.abs(n);
+  if (a >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
+  if (a >= 1e6) return `$${(n / 1e6).toFixed(1)}M`;
+  if (a >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
+};
+
+function MonthlyChart({ data, mode }: { data: MonthRow[]; mode: Mode }) {
   const { t } = useT();
   const [hover, setHover] = useState<number | null>(null);
 
-  const W = 880, H = 170, padL = 28, padR = 6, padT = 12, padB = 22;
-  const max = Math.max(1, ...data.map((d) => Math.max(Number(d.frozen), Number(d.destroyed))));
+  const W = 880, H = 170, padL = mode === 'usd' ? 40 : 28, padR = 6, padT = 12, padB = 22;
+  const fOf = (d: MonthRow) => Number(mode === 'usd' ? d.frozenUsd : d.frozen);
+  const dOf = (d: MonthRow) => Number(mode === 'usd' ? d.destroyedUsd : d.destroyed);
+  const fmt = (v: number) => (mode === 'usd' ? fmtUsdShort(v) : v.toLocaleString());
+  const max = Math.max(1, ...data.map((d) => Math.max(fOf(d), dOf(d))));
   const n = data.length || 1;
   const groupW = (W - padL - padR) / n;
   const barW = Math.max(1.5, Math.min(10, groupW / 2 - 1));
@@ -24,11 +37,11 @@ function MonthlyChart({ data }: { data: MonthRow[] }) {
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="monthly activity">
-        <text x={2} y={padT + 7} className="fill-neutral-600 text-[9px]">{max}</text>
+        <text x={2} y={padT + 7} className="fill-neutral-600 text-[9px]">{fmt(max)}</text>
         <line x1={padL} y1={padT + plotH} x2={W - padR} y2={padT + plotH} className="stroke-white/10" strokeWidth={1} />
         {data.map((d, i) => {
           const x = padL + i * groupW;
-          const f = Number(d.frozen), de = Number(d.destroyed);
+          const f = fOf(d), de = dOf(d);
           return (
             <g key={d.month}>
               {hover === i && <rect x={x - 1} y={padT} width={barW * 2 + 3} height={plotH} className="fill-white/5" />}
@@ -49,8 +62,8 @@ function MonthlyChart({ data }: { data: MonthRow[] }) {
         <div className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 rounded-md border border-white/15 bg-neutral-900/95 px-2 py-1 text-[11px] shadow-lg"
           style={{ left: `${tipLeft}%` }}>
           <div className="font-mono text-neutral-200">{data[hover].month}</div>
-          <div className="text-amber-300">{t('legendFrozen')}: {Number(data[hover].frozen).toLocaleString()}</div>
-          <div className="text-red-300">{t('legendDestroyed')}: {Number(data[hover].destroyed).toLocaleString()}</div>
+          <div className="text-amber-300">{t('legendFrozen')}: {fmt(fOf(data[hover]))}</div>
+          <div className="text-red-300">{t('legendDestroyed')}: {fmt(dOf(data[hover]))}</div>
         </div>
       )}
     </div>
@@ -60,6 +73,7 @@ function MonthlyChart({ data }: { data: MonthRow[] }) {
 export default function Charts() {
   const { t } = useT();
   const [data, setData] = useState<MonthRow[] | null>(null);
+  const [mode, setMode] = useState<Mode>('count');
 
   useEffect(() => {
     fetch('/api/frozen/timeline').then((r) => r.json()).then((d) => setData(d.monthly ?? [])).catch(() => {});
@@ -67,11 +81,19 @@ export default function Charts() {
 
   return (
     <section className="mb-8 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-      <div className="mb-2 text-[11px] uppercase tracking-wider text-neutral-500">{t('chartMonthly')}</div>
-      {data ? <MonthlyChart data={data} /> : <div className="h-[170px] animate-pulse rounded bg-white/5" />}
+      <div className="mb-2 flex gap-1 text-[11px]">
+        {(['count', 'usd'] as const).map((m) => (
+          <button key={m} type="button" onClick={() => setMode(m)}
+            className={`rounded-md px-2.5 py-1 transition-colors ${mode === m ? 'bg-white/10 text-neutral-100' : 'text-neutral-500 hover:text-neutral-300'}`}>
+            {t(m === 'usd' ? 'chartMonthlyUsd' : 'chartMonthly')}
+          </button>
+        ))}
+      </div>
+      {data ? <MonthlyChart data={data} mode={mode} /> : <div className="h-[170px] animate-pulse rounded bg-white/5" />}
       <div className="mt-2 flex gap-4 text-[11px] text-neutral-500">
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-amber-400/70" />{t('legendFrozen')}</span>
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-red-400/70" />{t('legendDestroyed')}</span>
+        {mode === 'usd' && <span className="ml-auto text-neutral-600">{t('chartUsdNote')}</span>}
       </div>
     </section>
   );
